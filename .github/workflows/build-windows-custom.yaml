@@ -6,6 +6,17 @@ on:
 permissions:
   contents: read
 
+env:
+  LICENSE_FILES: >-
+    LICENSE
+    LICENSE_BORINGSSL
+    LICENSE_CURL
+    LICENSE_NGHTTP2
+    LICENSE_NGHTTP3
+    LICENSE_NGTCP2
+    LICENSE_ZLIB
+    LICENSE_ZSTD
+
 jobs:
   build-windows:
     name: Build Windows x64
@@ -74,9 +85,9 @@ jobs:
           suffix="x86_64-win32"
           curl_tar="curl-impersonate-${suffix}.tar.gz"
           lib_tar="libcurl-impersonate-${suffix}.tar.gz"
-          tar -czf "$curl_tar" -C packages/bin . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
+          tar -czf "$curl_tar" -C packages/bin .
           if [ -d "packages/lib" ] && [ "$(ls -A packages/lib)" ]; then
-            tar -czf "$lib_tar" -C packages/lib . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
+            tar -czf "$lib_tar" -C packages/lib .
           else
             echo "No lib files found, skipping lib tarball"
             touch "$lib_tar"
