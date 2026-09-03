@@ -692,12 +692,14 @@ else()
       PATTERN "libcurl-impersonate*.dylib*"
   )
 endif()
+# ===== 修改：头文件路径从 DEPS_SRC_DIR 改为 DEPS_INSTALL_DIR =====
 install(
-  DIRECTORY "${DEPS_SRC_DIR}/curl/include/curl"
+  DIRECTORY "${DEPS_INSTALL_DIR}/include/curl"
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   FILES_MATCHING
     PATTERN "*.h"
 )
+# ================================================================
 if(WIN32)
   file(GLOB _curl_wrapper_scripts CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/win/bin/curl_*.bat")
 else()
