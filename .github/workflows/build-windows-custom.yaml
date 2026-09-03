@@ -40,6 +40,7 @@ jobs:
         run: |
           echo "Creating artifacts directory..."
           mkdir artifacts
+          mkdir artifacts\libs
           
           echo "Copying curl-impersonate.exe..."
           copy packages\bin\curl-impersonate.exe artifacts\
@@ -51,10 +52,20 @@ jobs:
           echo "Copying libcurl-impersonate.lib..."
           copy packages\lib\*.lib artifacts\
           
-          echo "Copying all dependency libraries from deps..."
-          if exist deps\build\curl\lib\*.lib copy deps\build\curl\lib\*.lib artifacts\
-          if exist deps\install\lib\*.lib copy deps\install\lib\*.lib artifacts\
-          if exist deps\install\lib\*.a copy deps\install\lib\*.a artifacts\
+          echo "Copying all dependency libraries..."
+          echo "From deps\build\curl\lib..."
+          if exist deps\build\curl\lib\*.lib copy deps\build\curl\lib\*.lib artifacts\libs\
+          echo "From deps\install\lib..."
+          if exist deps\install\lib\*.lib copy deps\install\lib\*.lib artifacts\libs\
+          echo "From deps\install\lib (static libs)..."
+          if exist deps\install\lib\*.a copy deps\install\lib\*.a artifacts\libs\
+          echo "From deps\src\zlib..."
+          if exist deps\src\zlib\*.lib copy deps\src\zlib\*.lib artifacts\libs\
+          echo "From deps\src\nghttp2..."
+          if exist deps\src\nghttp2\*.lib copy deps\src\nghttp2\*.lib artifacts\libs\
+          
+          echo "Copying libcurl-impersonate.lib to libs folder too..."
+          copy packages\lib\*.lib artifacts\libs\
           
           echo "Copying LICENSE files..."
           copy packages\*.LICENSE* artifacts\
