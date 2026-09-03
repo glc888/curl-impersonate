@@ -65,8 +65,10 @@ jobs:
         shell: bash
         run: |
           mkdir -p packages/bin packages/lib packages/include
-          if [ -d "deps/src/curl/include/curl" ]; then
-            cp -r deps/src/curl/include/curl packages/include/
+          if [ -d "deps/build/curl/include/curl" ]; then
+            cp -r deps/build/curl/include/curl packages/include/
+          elif [ -d "deps/install/include/curl" ]; then
+            cp -r deps/install/include/curl packages/include/
           fi
           if [ -f "deps/install/bin/curl-impersonate.exe" ]; then
             cp deps/install/bin/curl-impersonate.exe packages/bin/
