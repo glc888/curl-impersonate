@@ -1,7 +1,16 @@
-name: Build Windows Custom
-
+name: Build for windows
 on:
-  workflow_dispatch:
+  workflow_call:
+  push:
+    branches:
+      - main
+      - feature/*
+      - bugfix/*
+      - chore/*
+      - security/*
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -10,6 +19,7 @@ env:
   LICENSE_FILES: >-
     LICENSE
     LICENSE_BORINGSSL
+    LICENSE_BROTLI
     LICENSE_CURL
     LICENSE_NGHTTP2
     LICENSE_NGHTTP3
@@ -19,84 +29,69 @@ env:
 
 jobs:
   build-windows:
-    name: Build Windows x64
-    runs-on: windows-2022
-    
+    name: Build windows binaries
+    strategy:
+      matrix:
+        include:
+          - { sys: vcvars64, env: x86_64, runner: windows-2022 }
+          # - { sys: vcvars32, env: i686, runner: windows-2022 }
+          # - { sys: vcvarsarm64, env: arm64, runner: windows-11-arm }
+    runs-on: ${{ matrix.runner }}
     steps:
+      - name: configure Pagefile
+        uses: al-cheb/configure-pagefile-action@v1.3
+        with:
+          minimum-size: 16GB
+          maximum-size: 16GB
+          disk-root: "C:"
+
       - name: Install python 3.11
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
       - name: Check out the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
 
       - name: Install NASM
         shell: cmd
         run: choco install nasm -y
 
-      - name: Build x64
+      - name: Install Ninja for Win-ARM64
+        shell: pwsh
+        if: matrix.runner == 'windows-11-arm'
+        run: |
+          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.13.1/ninja-winarm64.zip -OutFile ninja-winarm64.zip
+          Expand-Archive ninja-winarm64.zip -DestinationPath ninja
+          Copy-Item ninja\ninja.exe -Destination "C:\Windows\System32"
+
+      # - name: Setup tmate session for debugging
+      #   uses: mxschmitt/action-tmate@v3
+
+      - name: Build
         shell: cmd
-        run: ./win/build.bat vcvars64
-
-      - name: Prepare packages
-        shell: bash
-        run: |
-          mkdir -p packages/bin packages/lib packages/include
-          
-          if [ -d "deps/install/bin" ]; then
-            cp deps/install/bin/* packages/bin/ 2>/dev/null || true
-          fi
-          if [ -d "deps/install/lib" ]; then
-            cp deps/install/lib/*.lib packages/lib/ 2>/dev/null || true
-            cp deps/install/lib/*.dll packages/bin/ 2>/dev/null || true
-          fi
-          if [ -d "deps/install/include/curl" ]; then
-            cp -r deps/install/include/curl packages/include/
-          fi
-          if [ -d "deps/build/curl/src" ]; then
-            cp deps/build/curl/src/curl-impersonate.exe packages/bin/ 2>/dev/null || true
-          fi
-          if [ -d "deps/build/curl/lib" ]; then
-            cp deps/build/curl/lib/*.lib packages/lib/ 2>/dev/null || true
-            cp deps/build/curl/lib/*.dll packages/bin/ 2>/dev/null || true
-          fi
-          if [ -d "deps/build/curl/include/curl" ]; then
-            cp -r deps/build/curl/include/curl packages/include/
-          fi
-          cp LICENSE* packages/ 2>/dev/null || true
-
-      - name: List packages
-        shell: bash
-        run: |
-          echo "=== deps/install/include ==="
-          ls -la deps/install/include/ || true
-          echo "=== deps/install ==="
-          ls -la deps/install/ || true
-          echo "=== deps/build/curl/include ==="
-          ls -la deps/build/curl/include/ || true
-          echo "=== packages/include ==="
-          ls -la packages/include/ || true
+        run: ./win/build.bat ${{ matrix.sys }}
 
       - name: Build tarballs
         shell: bash
         run: |
           set -euo pipefail
-          suffix="x86_64-win32"
-          curl_tar="curl-impersonate-${suffix}.tar.gz"
-          lib_tar="libcurl-impersonate-${suffix}.tar.gz"
-          tar -czf "$curl_tar" -C packages/bin .
-          if [ -d "packages/lib" ] && [ "$(ls -A packages/lib)" ]; then
-            tar -czf "$lib_tar" -C packages/lib .
+          suffix="${{ matrix.env }}-win32"
+          if [[ "${{ startsWith(github.ref, 'refs/tags/') }}" == "true" ]]; then
+            ver="${{ github.head_ref || github.ref_name }}"
+            curl_tar="curl-impersonate-${ver}.${suffix}.tar.gz"
+            lib_tar="libcurl-impersonate-${ver}.${suffix}.tar.gz"
           else
-            echo "No lib files found, skipping lib tarball"
-            touch "$lib_tar"
+            curl_tar="curl-impersonate-${suffix}.tar.gz"
+            lib_tar="libcurl-impersonate-${suffix}.tar.gz"
           fi
+          tar -czf "$curl_tar" -C packages/bin . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
+          tar -czf "$lib_tar" -C packages lib include $LICENSE_FILES
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts.windows.x86_64
+          name: artifacts.windows.${{ matrix.env }}
           path: |
             ./curl-impersonate*.tar.gz
             ./libcurl-impersonate*.tar.gz
