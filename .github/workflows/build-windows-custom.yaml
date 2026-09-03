@@ -1,4 +1,4 @@
-name: Build Windows Custom (x64 + x86)
+name: Build Windows Custom
 
 on:
   workflow_dispatch:
@@ -35,25 +35,21 @@ jobs:
         shell: cmd
         run: ./win/build.bat vcvars64
 
-      - name: Copy x64 static libraries
+      - name: Copy x64 artifacts
         shell: cmd
         run: |
-          mkdir all_libs_x64
-          copy deps\build\curl\lib\*.lib all_libs_x64\ 2>nul
-          copy deps\install\lib\*.lib all_libs_x64\ 2>nul
-          copy deps\install\lib\*.a all_libs_x64\ 2>nul
+          mkdir artifacts_x64
+          if exist packages\bin\curl-impersonate.exe copy packages\bin\curl-impersonate.exe artifacts_x64\
+          if exist packages\bin\*.bat copy packages\bin\*.bat artifacts_x64\
+          if exist packages\include\curl xcopy /E /I packages\include\curl artifacts_x64\include\curl\
+          if exist packages\lib\*.lib copy packages\lib\*.lib artifacts_x64\
+          if exist packages\*.LICENSE* copy packages\*.LICENSE* artifacts_x64\
 
       - name: Upload x64 artifacts
         uses: actions/upload-artifact@v4
         with:
           name: curl-impersonate-windows-x64-full
-          path: |
-            packages/bin/curl-impersonate.exe
-            packages/bin/*.bat
-            packages/include/curl/*.h
-            all_libs_x64/*.lib
-            all_libs_x64/*.a
-            packages/LICENSE*
+          path: artifacts_x64/*
 
   build-windows-x86:
     name: Build Windows x86
@@ -83,22 +79,18 @@ jobs:
         shell: cmd
         run: ./win/build.bat vcvars32
 
-      - name: Copy x86 static libraries
+      - name: Copy x86 artifacts
         shell: cmd
         run: |
-          mkdir all_libs_x86
-          copy deps\build\curl\lib\*.lib all_libs_x86\ 2>nul
-          copy deps\install\lib\*.lib all_libs_x86\ 2>nul
-          copy deps\install\lib\*.a all_libs_x86\ 2>nul
+          mkdir artifacts_x86
+          if exist packages\bin\curl-impersonate.exe copy packages\bin\curl-impersonate.exe artifacts_x86\
+          if exist packages\bin\*.bat copy packages\bin\*.bat artifacts_x86\
+          if exist packages\include\curl xcopy /E /I packages\include\curl artifacts_x86\include\curl\
+          if exist packages\lib\*.lib copy packages\lib\*.lib artifacts_x86\
+          if exist packages\*.LICENSE* copy packages\*.LICENSE* artifacts_x86\
 
       - name: Upload x86 artifacts
         uses: actions/upload-artifact@v4
         with:
           name: curl-impersonate-windows-x86-full
-          path: |
-            packages/bin/curl-impersonate.exe
-            packages/bin/*.bat
-            packages/include/curl/*.h
-            all_libs_x86/*.lib
-            all_libs_x86/*.a
-            packages/LICENSE*
+          path: artifacts_x86/*
