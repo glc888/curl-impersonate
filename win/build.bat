@@ -33,5 +33,12 @@ cmake -S . -B "%BUILD_DIR%" -GNinja ^
 
 cmake --build "%BUILD_DIR%" --config %CONFIGURATION% --target install-all || exit /b 1
 
+rem ===== 新增：复制所有依赖静态库到 packages/lib =====
+if not exist "%PACKAGES_DIR%\lib" mkdir "%PACKAGES_DIR%\lib"
+copy /Y "%BUILD_DIR%\deps\install\lib\*.lib" "%PACKAGES_DIR%\lib\" >NUL
+if errorlevel 1 (
+  echo Warning: Failed to copy dependency static libraries
+)
+
 if not exist "%PACKAGES_DIR%\bin" mkdir "%PACKAGES_DIR%\bin"
 copy /Y ".\win\bin\*.bat" "%PACKAGES_DIR%\bin\" >NUL || exit /b 1
