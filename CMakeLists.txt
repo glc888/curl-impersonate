@@ -603,9 +603,22 @@ ExternalProject_Add(curl
       -DHAVE_SSL_SET1_ECH_CONFIG_LIST=1
       -DHAVE_SSL_SET_QUIC_USE_LEGACY_CODEPOINT=1
       -DHAVE_OPENSSL_SRP=0
-      # ===== 保持 Brotli 和 ZSTD 开启（原版默认） =====
+      # ===== 保持 Brotli 开启（SSL 证书压缩需要） =====
       -DCURL_BROTLI=ON
-      -DCURL_ZSTD=ON
+      # ===== 裁剪 ZSTD =====
+      -DCURL_ZSTD=OFF
+      # ===== 裁剪 LDAP =====
+      -DCURL_DISABLE_LDAP=ON
+      -DCURL_DISABLE_LDAPS=ON
+      # ===== 裁剪 HTTP/3 =====
+      -DUSE_NGTCP2=OFF
+      # ===== 裁剪 IDN =====
+      -DUSE_WIN32_IDN=OFF
+      -DUSE_LIBIDN2=OFF
+      # ===== 裁剪 PSL =====
+      -DCURL_USE_LIBPSL=OFF
+      # ===== 裁剪 RTMP =====
+      -DUSE_LIBRTMP=OFF
       # ===== 裁剪不需要的协议 =====
       -DCURL_DISABLE_FTP=ON
       -DCURL_DISABLE_TFTP=ON
@@ -624,13 +637,6 @@ ExternalProject_Add(curl
       -DZSTD_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include
       -DZSTD_LIBRARY=${_curl_zstd_library}
       -DUSE_NGHTTP2=ON
-      -DUSE_NGTCP2=ON
-      -DCURL_DISABLE_LDAP=ON
-      -DCURL_DISABLE_LDAPS=ON
-      # XXX: psl should be enabled in the future:
-      # https://daniel.haxx.se/blog/2024/01/10/psl-in-curl/
-      -DCURL_USE_LIBPSL=OFF
-      -DUSE_LIBRTMP=OFF
       -DCURL_DISABLE_WEBSOCKETS=OFF
       -DUSE_ECH=ON
       -DUSE_SSLS_EXPORT=ON
