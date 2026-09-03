@@ -629,6 +629,25 @@ ExternalProject_Add(curl
       -DCURL_DISABLE_SMTP=ON
       -DCURL_DISABLE_GOPHER=ON
       -DCURL_DISABLE_RTSP=ON
+      # ===== 裁剪认证相关 =====
+      -DCURL_DISABLE_DIGEST_AUTH=ON
+      -DCURL_DISABLE_BASIC_AUTH=ON
+      -DCURL_DISABLE_NEGOTIATE_AUTH=ON
+      -DCURL_DISABLE_NTLM=ON
+      -DCURL_DISABLE_KERBEROS_AUTH=ON
+      # ===== 裁剪 MIME/Form =====
+      -DCURL_DISABLE_MIME=ON
+      -DCURL_DISABLE_HTTP_FORM=ON
+      # ===== 裁剪 Cookie =====
+      -DCURL_DISABLE_COOKIES=ON
+      # ===== 裁剪 HSTS =====
+      -DCURL_DISABLE_HSTS=ON
+      # ===== 裁剪 Alt-Svc =====
+      -DCURL_DISABLE_ALTSVC=ON
+      # ===== 裁剪 UnixSockets =====
+      -DCURL_DISABLE_UNIX_SOCKETS=ON
+      # ===== 裁剪 Largefile =====
+      -DENABLE_LARGE_FILE=OFF
       # =========================================
       # Make sure curl doesn't link against an unversioned .so (Linux only).
       -DZLIB_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include
