@@ -648,7 +648,7 @@ ExternalProject_Add(curl
     ${CMAKE_COMMAND} -E env
       ${_curl_clean_env}
     ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --parallel ${SUBJOBS}
-  INSTALL_COMMAND ""
+  INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install --parallel ${SUBJOBS}
 )
 
 add_custom_target(curl-impersonate ALL DEPENDS curl)
