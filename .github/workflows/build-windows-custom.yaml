@@ -20,7 +20,6 @@ env:
   LICENSE_FILES: >-
     LICENSE
     LICENSE_BORINGSSL
-    LICENSE_BROTLI
     LICENSE_CURL
     LICENSE_NGHTTP2
     LICENSE_NGHTTP3
@@ -79,9 +78,11 @@ jobs:
           if [ -d "deps/install/lib" ]; then
             cp deps/install/lib/*.lib packages/lib/ 2>/dev/null || true
             cp deps/install/lib/*.a packages/lib/ 2>/dev/null || true
+            cp deps/install/lib/*.dll packages/bin/ 2>/dev/null || true
           fi
           if [ -d "deps/build/curl/lib" ]; then
             cp deps/build/curl/lib/*.lib packages/lib/ 2>/dev/null || true
+            cp deps/build/curl/lib/*.dll packages/bin/ 2>/dev/null || true
           fi
           cp LICENSE* packages/ 2>/dev/null || true
 
@@ -102,8 +103,10 @@ jobs:
             curl_tar="curl-impersonate-${suffix}.tar.gz"
             lib_tar="libcurl-impersonate-${suffix}.tar.gz"
           fi
+          # 打包可执行文件
           tar -czf "$curl_tar" -C packages/bin . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
-          tar -czf "$lib_tar" -C packages/lib . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
+          # 打包库文件（lib 和 include）
+          tar -czf "$lib_tar" -C packages/lib . -C packages/include . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
