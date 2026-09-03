@@ -64,31 +64,42 @@ jobs:
         shell: bash
         run: |
           mkdir -p packages/bin packages/lib packages/include
-          if [ -d "deps/build/curl/include/curl" ]; then
-            cp -r deps/build/curl/include/curl packages/include/
-          elif [ -d "deps/install/include/curl" ]; then
-            cp -r deps/install/include/curl packages/include/
+          
+          echo "=== Finding files ==="
+          find deps -name "curl.h" 2>/dev/null || true
+          find deps -name "curl-impersonate.exe" 2>/dev/null || true
+          find deps -name "libcurl-impersonate*" 2>/dev/null || true
+          
+          echo "=== Copying include ==="
+          curl_h_path=$(find deps -name "curl.h" 2>/dev/null | head -1)
+          if [ -n "$curl_h_path" ]; then
+            curl_dir=$(dirname "$curl_h_path")
+            cp -r "$curl_dir" packages/include/ 2>/dev/null || true
           fi
-          if [ -f "deps/install/bin/curl-impersonate.exe" ]; then
-            cp deps/install/bin/curl-impersonate.exe packages/bin/
+          
+          echo "=== Copying exe ==="
+          exe_path=$(find deps -name "curl-impersonate.exe" 2>/dev/null | head -1)
+          if [ -n "$exe_path" ]; then
+            cp "$exe_path" packages/bin/
           fi
-          if [ -f "deps/build/curl/src/curl-impersonate.exe" ]; then
-            cp deps/build/curl/src/curl-impersonate.exe packages/bin/
-          fi
-          if [ -d "deps/install/lib" ]; then
-            cp deps/install/lib/*.lib packages/lib/ 2>/dev/null || true
-            cp deps/install/lib/*.a packages/lib/ 2>/dev/null || true
-            cp deps/install/lib/*.dll packages/bin/ 2>/dev/null || true
-          fi
-          if [ -d "deps/build/curl/lib" ]; then
-            cp deps/build/curl/lib/*.lib packages/lib/ 2>/dev/null || true
-            cp deps/build/curl/lib/*.dll packages/bin/ 2>/dev/null || true
-          fi
+          
+          echo "=== Copying libs ==="
+          find deps -name "*.lib" -exec cp {} packages/lib/ \; 2>/dev/null || true
+          find deps -name "*.dll" -exec cp {} packages/bin/ \; 2>/dev/null || true
+          
           cp LICENSE* packages/ 2>/dev/null || true
 
       - name: List packages
         shell: bash
-        run: ls -la packages/ packages/bin/ packages/lib/ packages/include/ || true
+        run: |
+          echo "=== packages ==="
+          ls -la packages/ || true
+          echo "=== packages/bin ==="
+          ls -la packages/bin/ || true
+          echo "=== packages/lib ==="
+          ls -la packages/lib/ || true
+          echo "=== packages/include ==="
+          ls -la packages/include/ || true
 
       - name: Build tarballs
         shell: bash
@@ -103,10 +114,13 @@ jobs:
             curl_tar="curl-impersonate-${suffix}.tar.gz"
             lib_tar="libcurl-impersonate-${suffix}.tar.gz"
           fi
-          # 打包可执行文件
           tar -czf "$curl_tar" -C packages/bin . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
-          # 打包库文件（lib 和 include）
-          tar -czf "$lib_tar" -C packages/lib . -C packages/include . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
+          if [ -d "packages/lib" ] && [ "$(ls -A packages/lib)" ]; then
+            tar -czf "$lib_tar" -C packages/lib . -C packages/include . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
+          else
+            echo "No lib files found, skipping lib tarball"
+            touch "$lib_tar"
+          fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
