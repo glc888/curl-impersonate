@@ -37,13 +37,6 @@ jobs:
           - { sys: vcvars32, env: i686, runner: windows-2022 }
     runs-on: ${{ matrix.runner }}
     steps:
-      - name: configure Pagefile
-        uses: al-cheb/configure-pagefile-action@v1.3
-        with:
-          minimum-size: 16GB
-          maximum-size: 16GB
-          disk-root: "C:"
-
       - name: Install python 3.11
         uses: actions/setup-python@v4
         with:
@@ -60,26 +53,44 @@ jobs:
         shell: cmd
         run: ./win/build.bat ${{ matrix.sys }}
 
-      - name: List files
+      - name: Prepare packages
         shell: bash
         run: |
-          echo "=== Current directory ==="
-          pwd
-          ls -la
-          echo "=== deps/install ==="
-          ls -la deps/install/ || true
-          echo "=== deps/install/bin ==="
-          ls -la deps/install/bin/ || true
-          echo "=== deps/install/lib ==="
-          ls -la deps/install/lib/ || true
-          echo "=== deps/install/include ==="
-          ls -la deps/install/include/ || true
-          echo "=== deps/build/curl ==="
-          ls -la deps/build/curl/ || true
-          echo "=== deps/build/curl/src ==="
-          ls -la deps/build/curl/src/ || true
-          echo "=== deps/build/curl/include ==="
-          ls -la deps/build/curl/include/ || true
+          mkdir -p packages/bin packages/lib packages/include
+          
+          if [ -d "deps/install/bin" ]; then
+            cp deps/install/bin/* packages/bin/ 2>/dev/null || true
+          fi
+          if [ -d "deps/install/lib" ]; then
+            cp deps/install/lib/*.lib packages/lib/ 2>/dev/null || true
+            cp deps/install/lib/*.dll packages/bin/ 2>/dev/null || true
+          fi
+          if [ -d "deps/install/include/curl" ]; then
+            cp -r deps/install/include/curl packages/include/
+          fi
+          if [ -d "deps/build/curl/src" ]; then
+            cp deps/build/curl/src/curl-impersonate.exe packages/bin/ 2>/dev/null || true
+          fi
+          if [ -d "deps/build/curl/lib" ]; then
+            cp deps/build/curl/lib/*.lib packages/lib/ 2>/dev/null || true
+            cp deps/build/curl/lib/*.dll packages/bin/ 2>/dev/null || true
+          fi
+          if [ -d "deps/build/curl/include/curl" ]; then
+            cp -r deps/build/curl/include/curl packages/include/
+          fi
+          cp LICENSE* packages/ 2>/dev/null || true
+
+      - name: List packages
+        shell: bash
+        run: |
+          echo "=== packages ==="
+          ls -la packages/ || true
+          echo "=== packages/bin ==="
+          ls -la packages/bin/ || true
+          echo "=== packages/lib ==="
+          ls -la packages/lib/ || true
+          echo "=== packages/include ==="
+          ls -la packages/include/ || true
 
       - name: Build tarballs
         shell: bash
@@ -94,9 +105,13 @@ jobs:
             curl_tar="curl-impersonate-${suffix}.tar.gz"
             lib_tar="libcurl-impersonate-${suffix}.tar.gz"
           fi
-          echo "Creating tarballs..."
           tar -czf "$curl_tar" -C packages/bin . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
-          tar -czf "$lib_tar" -C packages/lib . -C packages/include . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
+          if [ -d "packages/lib" ] && [ "$(ls -A packages/lib)" ]; then
+            tar -czf "$lib_tar" -C packages/lib . -C packages/include . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
+          else
+            echo "No lib files found, skipping lib tarball"
+            touch "$lib_tar"
+          fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
