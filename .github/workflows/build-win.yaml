@@ -1,5 +1,6 @@
 name: Build for windows
 on:
+  workflow_dispatch:    # ← 添加这一行，允许手动触发
   workflow_call:
   push:
     branches:
