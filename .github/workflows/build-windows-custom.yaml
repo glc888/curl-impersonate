@@ -1,0 +1,104 @@
+name: Build Windows Custom (x64 + x86)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows-x64:
+    name: Build Windows x64
+    runs-on: windows-2022
+    
+    steps:
+      - name: configure Pagefile
+        uses: al-cheb/configure-pagefile-action@v1.3
+        with:
+          minimum-size: 16GB
+          maximum-size: 16GB
+          disk-root: "C:"
+
+      - name: Install python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Install NASM
+        shell: cmd
+        run: choco install nasm -y
+
+      - name: Build x64
+        shell: cmd
+        run: ./win/build.bat vcvars64
+
+      - name: Copy x64 static libraries
+        shell: cmd
+        run: |
+          mkdir all_libs_x64
+          copy deps\build\curl\lib\*.lib all_libs_x64\ 2>nul
+          copy deps\install\lib\*.lib all_libs_x64\ 2>nul
+          copy deps\install\lib\*.a all_libs_x64\ 2>nul
+
+      - name: Upload x64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: curl-impersonate-windows-x64-full
+          path: |
+            packages/bin/curl-impersonate.exe
+            packages/bin/*.bat
+            packages/include/curl/*.h
+            all_libs_x64/*.lib
+            all_libs_x64/*.a
+            packages/LICENSE*
+
+  build-windows-x86:
+    name: Build Windows x86
+    runs-on: windows-2022
+    
+    steps:
+      - name: configure Pagefile
+        uses: al-cheb/configure-pagefile-action@v1.3
+        with:
+          minimum-size: 16GB
+          maximum-size: 16GB
+          disk-root: "C:"
+
+      - name: Install python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Install NASM
+        shell: cmd
+        run: choco install nasm -y
+
+      - name: Build x86
+        shell: cmd
+        run: ./win/build.bat vcvars32
+
+      - name: Copy x86 static libraries
+        shell: cmd
+        run: |
+          mkdir all_libs_x86
+          copy deps\build\curl\lib\*.lib all_libs_x86\ 2>nul
+          copy deps\install\lib\*.lib all_libs_x86\ 2>nul
+          copy deps\install\lib\*.a all_libs_x86\ 2>nul
+
+      - name: Upload x86 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: curl-impersonate-windows-x86-full
+          path: |
+            packages/bin/curl-impersonate.exe
+            packages/bin/*.bat
+            packages/include/curl/*.h
+            all_libs_x86/*.lib
+            all_libs_x86/*.a
+            packages/LICENSE*
