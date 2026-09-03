@@ -603,10 +603,8 @@ ExternalProject_Add(curl
       -DHAVE_SSL_SET1_ECH_CONFIG_LIST=1
       -DHAVE_SSL_SET_QUIC_USE_LEGACY_CODEPOINT=1
       -DHAVE_OPENSSL_SRP=0
-      # ===== 修改：禁用 Brotli 和 ZSTD =====
       -DCURL_BROTLI=OFF
       -DCURL_ZSTD=OFF
-      # ===== 新增：裁剪不需要的协议 =====
       -DCURL_DISABLE_FTP=ON
       -DCURL_DISABLE_TFTP=ON
       -DCURL_DISABLE_TELNET=ON
@@ -616,7 +614,6 @@ ExternalProject_Add(curl
       -DCURL_DISABLE_SMTP=ON
       -DCURL_DISABLE_GOPHER=ON
       -DCURL_DISABLE_RTSP=ON
-      # =====================================
       # Make sure curl doesn't link against an unversioned .so (Linux only).
       -DZLIB_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include
       -DZLIB_LIBRARY=${_curl_zlib_library}
@@ -648,7 +645,7 @@ ExternalProject_Add(curl
     ${CMAKE_COMMAND} -E env
       ${_curl_clean_env}
     ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --parallel ${SUBJOBS}
-  INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install --parallel ${SUBJOBS}
+  INSTALL_COMMAND ""
 )
 
 add_custom_target(curl-impersonate ALL DEPENDS curl)
@@ -693,7 +690,7 @@ else()
   )
 endif()
 install(
-  DIRECTORY "${DEPS_INSTALL_DIR}/include/curl"
+  DIRECTORY "${DEPS_SRC_DIR}/curl/include/curl"
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   FILES_MATCHING
     PATTERN "*.h"
