@@ -1,6 +1,6 @@
 name: Build for windows
 on:
-  workflow_dispatch:    # ← 添加这一行，允许手动触发
+  workflow_dispatch:    # 允许手动触发
   workflow_call:
   push:
     branches:
@@ -20,7 +20,6 @@ env:
   LICENSE_FILES: >-
     LICENSE
     LICENSE_BORINGSSL
-    LICENSE_BROTLI
     LICENSE_CURL
     LICENSE_NGHTTP2
     LICENSE_NGHTTP3
@@ -35,8 +34,8 @@ jobs:
       matrix:
         include:
           - { sys: vcvars64, env: x86_64, runner: windows-2022 }
-          - { sys: vcvars32, env: i686, runner: windows-2022 }
-          - { sys: vcvarsarm64, env: arm64, runner: windows-11-arm }
+          # - { sys: vcvars32, env: i686, runner: windows-2022 }  # 注释掉，不需要 32 位
+          # - { sys: vcvarsarm64, env: arm64, runner: windows-11-arm }  # 注释掉，不需要 ARM
     runs-on: ${{ matrix.runner }}
     steps:
       - name: configure Pagefile
@@ -86,8 +85,15 @@ jobs:
             curl_tar="curl-impersonate-${suffix}.tar.gz"
             lib_tar="libcurl-impersonate-${suffix}.tar.gz"
           fi
-          tar -czf "$curl_tar" -C packages/bin . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
-          tar -czf "$lib_tar" -C packages lib include $LICENSE_FILES
+          # 只打包存在的 LICENSE 文件
+          LICENSE_FILES_EXIST=""
+          for f in $LICENSE_FILES; do
+            if [ -f "$GITHUB_WORKSPACE/packages/$f" ]; then
+              LICENSE_FILES_EXIST="$LICENSE_FILES_EXIST $f"
+            fi
+          done
+          tar -czf "$curl_tar" -C packages/bin . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES_EXIST
+          tar -czf "$lib_tar" -C packages lib include $LICENSE_FILES_EXIST
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
