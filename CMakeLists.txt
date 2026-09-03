@@ -606,20 +606,18 @@ ExternalProject_Add(curl
       # ===== 修改：禁用 Brotli 和 ZSTD =====
       -DCURL_BROTLI=OFF
       -DCURL_ZSTD=OFF
-      # ===== 修改：裁剪不需要的协议 =====
+      # ===== 新增：裁剪不需要的协议 =====
       -DCURL_DISABLE_FTP=ON
       -DCURL_DISABLE_TFTP=ON
       -DCURL_DISABLE_TELNET=ON
       -DCURL_DISABLE_DICT=ON
-      -DCURL_DISABLE_LDAP=ON
-      -DCURL_DISABLE_LDAPS=ON      -DCURL_DISABLE_IMAP=ON
+      -DCURL_DISABLE_IMAP=ON
       -DCURL_DISABLE_POP3=ON
       -DCURL_DISABLE_SMTP=ON
       -DCURL_DISABLE_GOPHER=ON
       -DCURL_DISABLE_RTSP=ON
-      # ===== 保留 WebSocket =====
-      -DCURL_DISABLE_WEBSOCKETS=OFF
-      # ===== 原版已有的配置（保持不变） =====
+      # =====================================
+      # Make sure curl doesn't link against an unversioned .so (Linux only).
       -DZLIB_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include
       -DZLIB_LIBRARY=${_curl_zlib_library}
       -DZLIB_LIBRARY_RELEASE=${_curl_zlib_library}
@@ -627,8 +625,13 @@ ExternalProject_Add(curl
       -DZSTD_LIBRARY=${_curl_zstd_library}
       -DUSE_NGHTTP2=ON
       -DUSE_NGTCP2=ON
+      -DCURL_DISABLE_LDAP=ON
+      -DCURL_DISABLE_LDAPS=ON
+      # XXX: psl should be enabled in the future:
+      # https://daniel.haxx.se/blog/2024/01/10/psl-in-curl/
       -DCURL_USE_LIBPSL=OFF
       -DUSE_LIBRTMP=OFF
+      -DCURL_DISABLE_WEBSOCKETS=OFF
       -DUSE_ECH=ON
       -DUSE_SSLS_EXPORT=ON
       -DENABLE_IPV6=ON
