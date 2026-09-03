@@ -39,7 +39,6 @@ option(CURL_DISABLE_WEBSOCKETS "Disable WebSockets" OFF)
 option(CURL_BROTLI "Enable Brotli compression" OFF)
 option(CURL_ZSTD "Enable ZSTD compression" OFF)
 option(CURL_USE_LIBPSL "Enable PSL" OFF)
-option(USE_LIBRTMP "Enable RTMP" OFF)
 option(CURL_USE_LIBSSH2 "Enable SSH2" OFF)
 option(CURL_USE_LIBIDN2 "Enable IDN2" OFF)
 # ============================================================
@@ -555,7 +554,7 @@ if(NOT _curl_patch_changed AND
 endif()
 
 # ============================================================
-# ===== curl 主配置（完整版） =====
+# ===== curl 主配置（Windows .lib 格式） =====
 # ============================================================
 ExternalProject_Add(curl
   LIST_SEPARATOR |
@@ -583,7 +582,7 @@ ExternalProject_Add(curl
       -DCURL_STATICLIB=ON
       -DBUILD_STATIC_LIBS=ON
       -DBUILD_SHARED_LIBS=OFF
-      -DCMAKE_FIND_LIBRARY_SUFFIXES=.a
+      -DCMAKE_FIND_LIBRARY_SUFFIXES=.lib
       
       -DCURL_USE_OPENSSL=ON
       -DCURL_ENABLE_SSL=ON
@@ -614,7 +613,6 @@ ExternalProject_Add(curl
       -DCURL_BROTLI=${CURL_BROTLI}
       -DCURL_ZSTD=${CURL_ZSTD}
       -DCURL_USE_LIBPSL=${CURL_USE_LIBPSL}
-      -DUSE_LIBRTMP=${USE_LIBRTMP}
       -DCURL_USE_LIBSSH2=${CURL_USE_LIBSSH2}
       
       # ===== 保留 WebSocket =====
@@ -624,24 +622,24 @@ ExternalProject_Add(curl
       -DUSE_NGHTTP2=ON
       -DUSE_NGTCP2=ON
       
-      # ===== 强制指定所有依赖库路径 =====
+      # ===== 强制指定所有依赖库路径（Windows .lib 格式） =====
       -DZLIB_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include
-      -DZLIB_LIBRARY=${_curl_zlib_library}
-      -DZLIB_LIBRARY_RELEASE=${_curl_zlib_library}
+      -DZLIB_LIBRARY=${DEPS_INSTALL_DIR}/lib/zlibstatic.lib
+      -DZLIB_LIBRARY_RELEASE=${DEPS_INSTALL_DIR}/lib/zlibstatic.lib
       -DZSTD_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include
-      -DZSTD_LIBRARY=${_curl_zstd_library}
-      -DZSTD_LIBRARY_RELEASE=${_curl_zstd_library}
+      -DZSTD_LIBRARY=${DEPS_INSTALL_DIR}/lib/zstd_static.lib
+      -DZSTD_LIBRARY_RELEASE=${DEPS_INSTALL_DIR}/lib/zstd_static.lib
       -DNGHTTP2_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include
-      -DNGHTTP2_LIBRARY=${DEPS_INSTALL_DIR}/lib/libnghttp2.a
-      -DNGHTTP2_LIBRARY_RELEASE=${DEPS_INSTALL_DIR}/lib/libnghttp2.a
+      -DNGHTTP2_LIBRARY=${DEPS_INSTALL_DIR}/lib/libnghttp2.lib
+      -DNGHTTP2_LIBRARY_RELEASE=${DEPS_INSTALL_DIR}/lib/libnghttp2.lib
       -DNGTCP2_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include
-      -DNGTCP2_LIBRARY=${DEPS_INSTALL_DIR}/lib/libngtcp2.a
-      -DNGTCP2_LIBRARY_RELEASE=${DEPS_INSTALL_DIR}/lib/libngtcp2.a
-      -DNGTCP2_CRYPTO_BORINGSSL_LIBRARY=${DEPS_INSTALL_DIR}/lib/libngtcp2_crypto_boringssl.a
-      -DNGTCP2_CRYPTO_BORINGSSL_LIBRARY_RELEASE=${DEPS_INSTALL_DIR}/lib/libngtcp2_crypto_boringssl.a
+      -DNGTCP2_LIBRARY=${DEPS_INSTALL_DIR}/lib/libngtcp2.lib
+      -DNGTCP2_LIBRARY_RELEASE=${DEPS_INSTALL_DIR}/lib/libngtcp2.lib
+      -DNGTCP2_CRYPTO_BORINGSSL_LIBRARY=${DEPS_INSTALL_DIR}/lib/libngtcp2_crypto_boringssl.lib
+      -DNGTCP2_CRYPTO_BORINGSSL_LIBRARY_RELEASE=${DEPS_INSTALL_DIR}/lib/libngtcp2_crypto_boringssl.lib
       -DNGHTTP3_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include
-      -DNGHTTP3_LIBRARY=${DEPS_INSTALL_DIR}/lib/libnghttp3.a
-      -DNGHTTP3_LIBRARY_RELEASE=${DEPS_INSTALL_DIR}/lib/libnghttp3.a
+      -DNGHTTP3_LIBRARY=${DEPS_INSTALL_DIR}/lib/libnghttp3.lib
+      -DNGHTTP3_LIBRARY_RELEASE=${DEPS_INSTALL_DIR}/lib/libnghttp3.lib
       
       -DUSE_ECH=ON
       -DUSE_SSLS_EXPORT=ON
