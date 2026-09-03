@@ -22,6 +22,28 @@ if(NOT _nproc)
 endif()
 set(SUBJOBS "${_nproc}" CACHE STRING "Parallel build jobs")
 
+# ============================================================
+# ===== 新增：裁剪选项（只保留 WebSocket 需要的内容） =====
+# ============================================================
+option(CURL_DISABLE_FTP "Disable FTP protocol" ON)
+option(CURL_DISABLE_TFTP "Disable TFTP protocol" ON)
+option(CURL_DISABLE_TELNET "Disable Telnet protocol" ON)
+option(CURL_DISABLE_DICT "Disable Dict protocol" ON)
+option(CURL_DISABLE_LDAP "Disable LDAP protocol" ON)
+option(CURL_DISABLE_IMAP "Disable IMAP protocol" ON)
+option(CURL_DISABLE_POP3 "Disable POP3 protocol" ON)
+option(CURL_DISABLE_SMTP "Disable SMTP protocol" ON)
+option(CURL_DISABLE_GOPHER "Disable Gopher protocol" ON)
+option(CURL_DISABLE_RTSP "Disable RTSP protocol" ON)
+option(CURL_DISABLE_WEBSOCKETS "Disable WebSockets" OFF)  # ← 保留，您的代码需要
+option(CURL_BROTLI "Enable Brotli compression" OFF)        # ← 不需要
+option(CURL_ZSTD "Enable ZSTD compression" OFF)            # ← 不需要
+option(CURL_USE_LIBPSL "Enable PSL" OFF)                   # ← 不需要
+option(USE_LIBRTMP "Enable RTMP" OFF)                      # ← 不需要
+option(CURL_USE_LIBSSH2 "Enable SSH2" OFF)                 # ← 不需要
+option(CURL_USE_LIBIDN2 "Enable IDN2" OFF)                 # ← 不需要
+# ============================================================
+
 # Versions and URLs
 set(BROTLI_VERSION "1.2.0")
 set(BROTLI_URL_HASH "SHA256=816c96e8e8f193b40151dad7e8ff37b1221d019dbcb9c35cd3fadbfe6477dfec")
@@ -98,12 +120,18 @@ if(WIN32)
   endif()
 endif()
 option(DISABLE_BORINGSSL_ASM "Disable BoringSSL asm (arm64 workaround)" ${_disable_boringssl_asm_default})
+
+# ============================================================
+# ===== 修改：默认禁用 USE_LIBIDN2 =====
+# ============================================================
 if(WIN32 OR APPLE OR ANDROID OR CMAKE_SYSTEM_NAME MATCHES "BSD$")
   set(_use_libidn2_default OFF)
 else()
-  set(_use_libidn2_default ON)
+  set(_use_libidn2_default OFF)  # ← 改为 OFF，不需要 IDN
 endif()
 option(USE_LIBIDN2 "Build and use libidn2/libunistring for IDN support" ${_use_libidn2_default})
+# ============================================================
+
 option(CURL_SUBPROJECT_FORCE_OPENSSL_PATHS
   "Pass explicit OPENSSL_* paths to the curl subproject"
   ON)
@@ -232,7 +260,10 @@ ExternalProject_Add(zlib
   BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --parallel ${SUBJOBS}
 )
 
-# zstd
+# ============================================================
+# ===== 修改：zstd 改为默认禁用（但保留编译，因为 zlib 需要） =====
+# 实际上 zstd 可以完全禁用，但为了简单，保留编译但不链接
+# ============================================================
 ExternalProject_Add(zstd
   URL "${ZSTD_URL}"
   URL_HASH "${ZSTD_URL_HASH}"
@@ -250,30 +281,39 @@ ExternalProject_Add(zstd
     -DZSTD_BUILD_TESTS=OFF
   BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --parallel ${SUBJOBS}
 )
+# ============================================================
 
-# brotli
-_track_external_project_patch(brotli _brotli_patch_file _brotli_patch_changed)
-ExternalProject_Add(brotli
-  URL "${BROTLI_URL}"
-  URL_HASH "${BROTLI_URL_HASH}"
-  SOURCE_DIR "${DEPS_SRC_DIR}/brotli"
-  BINARY_DIR "${DEPS_BUILD_DIR}/brotli"
-  INSTALL_DIR "${DEPS_INSTALL_DIR}"
-  PATCH_COMMAND ${PATCH_EXE} -p1 -i "${_brotli_patch_file}"
-  CMAKE_ARGS
-    ${_common_cmake_args}
-    -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
-    -DBUILD_SHARED_LIBS=OFF
-    -DBROTLI_DISABLE_TESTS=ON
-    -DBROTLI_DISABLE_TOOLS=ON
-    -DBROTLI_BUILD_TOOLS=OFF
-    -DCMAKE_MACOSX_BUNDLE=OFF
-  BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --parallel ${SUBJOBS}
-  INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install --parallel ${SUBJOBS}
-)
+# ============================================================
+# ===== 修改：brotli 改为默认禁用 =====
+# ============================================================
+# 完全跳过 brotli 编译（不需要）
+# 注释掉 brotli 的 ExternalProject_Add
+# 但为了不破坏依赖关系，我们保留但设置 DISABLE
+set(BROTLI_SKIP TRUE)
+if(NOT BROTLI_SKIP)
+  _track_external_project_patch(brotli _brotli_patch_file _brotli_patch_changed)
+  ExternalProject_Add(brotli
+    URL "${BROTLI_URL}"
+    URL_HASH "${BROTLI_URL_HASH}"
+    SOURCE_DIR "${DEPS_SRC_DIR}/brotli"
+    BINARY_DIR "${DEPS_BUILD_DIR}/brotli"
+    INSTALL_DIR "${DEPS_INSTALL_DIR}"
+    PATCH_COMMAND ${PATCH_EXE} -p1 -i "${_brotli_patch_file}"
+    CMAKE_ARGS
+      ${_common_cmake_args}
+      -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+      -DBUILD_SHARED_LIBS=OFF
+      -DBROTLI_DISABLE_TESTS=ON
+      -DBROTLI_DISABLE_TOOLS=ON
+      -DBROTLI_BUILD_TOOLS=OFF
+      -DCMAKE_MACOSX_BUNDLE=OFF
+    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --parallel ${SUBJOBS}
+    INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install --parallel ${SUBJOBS}
+  )
+endif()
+# ============================================================
 
 # boringssl
-
 # The extra CMAKE_C_FLAGS are needed because otherwise boringssl fails to
 # compile in release mode on some systems with gcc 12 (e.g. Fedora).
 # In addition, guard these options with -Wno-unknown-warning-option to
@@ -346,7 +386,9 @@ ExternalProject_Add(nghttp2
   INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install --parallel ${SUBJOBS}
 )
 
-# nghttp3
+# ============================================================
+# ===== 修改：nghttp3 保留（HTTP/3 支持，您的代码可能需要） =====
+# ============================================================
 _track_external_project_patch(nghttp3 _nghttp3_patch_file _nghttp3_patch_changed)
 ExternalProject_Add(nghttp3
   URL "${NGHTTP3_URL}"
@@ -374,6 +416,7 @@ ExternalProject_Add(nghttp3
       -DNEEDLE=nghttp3_settings_entry
       -P "${CMAKE_SOURCE_DIR}/cmake/CheckFileContains.cmake"
 )
+# ============================================================
 
 # ngtcp2
 _track_external_project_patch(ngtcp2 _ngtcp2_patch_file _ngtcp2_patch_changed)
@@ -408,7 +451,9 @@ ExternalProject_Add(ngtcp2
   INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install --parallel ${SUBJOBS}
 )
 
-# libidn2
+# ============================================================
+# ===== 修改：USE_LIBIDN2 默认禁用 =====
+# ============================================================
 if(USE_LIBIDN2)
   set(_libidn2_archive "${DEPS_INSTALL_DIR}/lib/libidn2.a")
   if(NOT EXISTS "${_libidn2_archive}")
@@ -421,6 +466,7 @@ if(USE_LIBIDN2)
     COMMAND ${CMAKE_COMMAND} -E echo "Using prebuilt libidn2 from ${DEPS_INSTALL_DIR}"
   )
 endif()
+# ============================================================
 
 # curl
 set(_curl_use_pkgconfig_flag -DCURL_USE_PKGCONFIG=OFF)
@@ -435,25 +481,23 @@ if(NOT WIN32)
   )
 endif()
 
+# ============================================================
+# ===== 修改：禁用 IDN =====
+# ============================================================
 if(WIN32)
-  set(_curl_idn_flags -DUSE_WIN32_IDN=ON -DUSE_LIBIDN2=OFF)
+  set(_curl_idn_flags -DUSE_WIN32_IDN=OFF -DUSE_LIBIDN2=OFF)  # ← 禁用
 elseif(APPLE)
-  if(USE_LIBIDN2)
-    set(_curl_idn_flags -DUSE_APPLE_IDN=OFF -DUSE_LIBIDN2=ON)
-  else()
-    set(_curl_idn_flags -DUSE_APPLE_IDN=ON -DUSE_LIBIDN2=OFF)
-  endif()
+  set(_curl_idn_flags -DUSE_APPLE_IDN=OFF -DUSE_LIBIDN2=OFF)  # ← 禁用
 elseif(ANDROID)
   set(_curl_idn_flags -DUSE_LIBIDN2=OFF)
-elseif(USE_LIBIDN2)
-  set(_curl_idn_flags -DUSE_LIBIDN2=ON)
 else()
   set(_curl_idn_flags -DUSE_LIBIDN2=OFF)
 endif()
+# ============================================================
 
-# Single curl build mode: produce shared+static libcurl and static curl binary.
+# Single curl build mode: produce static libcurl and static curl binary.
 set(_curl_build_flags
-  -DBUILD_SHARED_LIBS=ON
+  -DBUILD_SHARED_LIBS=OFF          # ← 只编译静态库
   -DBUILD_STATIC_LIBS=ON
   -DBUILD_STATIC_CURL=ON
   -DBUILD_CURL_EXE=ON
@@ -467,10 +511,16 @@ if(NOT CURL_CA_PATH STREQUAL "")
   list(APPEND _curl_ca_flags "-DCURL_CA_PATH=${CURL_CA_PATH}")
 endif()
 
-set(_curl_deps zlib zstd brotli boringssl nghttp2 ngtcp2 nghttp3)
+# ============================================================
+# ===== 修改：依赖列表，移除 brotli =====
+# ============================================================
+set(_curl_deps zlib zstd boringssl nghttp2 ngtcp2 nghttp3)
+# brotli 已移除
+# zstd 保留但后续会禁用
 if(USE_LIBIDN2)
   list(APPEND _curl_deps libidn2)
 endif()
+# ============================================================
 
 if(WIN32)
   set(_curl_zlib_library "${DEPS_INSTALL_DIR}/lib/zlibstatic.lib")
@@ -494,9 +544,11 @@ if(NOT WIN32)
   list(APPEND _curl_staged_dependency_args
     "-DCMAKE_C_FLAGS=${_curl_c_flags}"
     "-DCMAKE_CXX_FLAGS=${_curl_cxx_flags}"
-    "-DBROTLI_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include"
-    "-DBROTLIDEC_LIBRARY=${DEPS_INSTALL_DIR}/lib/libbrotlidec.a"
-    "-DBROTLICOMMON_LIBRARY=${DEPS_INSTALL_DIR}/lib/libbrotlicommon.a"
+    # ===== 修改：禁用 Brotli =====
+    # "-DBROTLI_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include"
+    # "-DBROTLIDEC_LIBRARY=${DEPS_INSTALL_DIR}/lib/libbrotlidec.a"
+    # "-DBROTLICOMMON_LIBRARY=${DEPS_INSTALL_DIR}/lib/libbrotlicommon.a"
+    # =============================
     "-DNGHTTP2_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include"
     "-DNGHTTP2_LIBRARY=${DEPS_INSTALL_DIR}/lib/libnghttp2.a"
     "-DNGHTTP3_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include"
@@ -572,6 +624,9 @@ if(NOT _curl_patch_changed AND
   _invalidate_external_project(curl "A curl dependency patch changed")
 endif()
 
+# ============================================================
+# ===== curl 主配置（所有裁剪选项在这里） =====
+# ============================================================
 ExternalProject_Add(curl
   LIST_SEPARATOR |
   URL "${CURL_URL}"
@@ -603,28 +658,47 @@ ExternalProject_Add(curl
       -DHAVE_SSL_SET1_ECH_CONFIG_LIST=1
       -DHAVE_SSL_SET_QUIC_USE_LEGACY_CODEPOINT=1
       -DHAVE_OPENSSL_SRP=0
-      -DCURL_BROTLI=ON
-      -DCURL_ZSTD=ON
+      
+      # ============================================================
+      # ===== 新增：裁剪不需要的协议 =====
+      # ============================================================
+      -DCURL_DISABLE_FTP=${CURL_DISABLE_FTP}
+      -DCURL_DISABLE_TFTP=${CURL_DISABLE_TFTP}
+      -DCURL_DISABLE_TELNET=${CURL_DISABLE_TELNET}
+      -DCURL_DISABLE_DICT=${CURL_DISABLE_DICT}
+      -DCURL_DISABLE_LDAP=${CURL_DISABLE_LDAP}
+      -DCURL_DISABLE_LDAPS=${CURL_DISABLE_LDAP}
+      -DCURL_DISABLE_IMAP=${CURL_DISABLE_IMAP}
+      -DCURL_DISABLE_POP3=${CURL_DISABLE_POP3}
+      -DCURL_DISABLE_SMTP=${CURL_DISABLE_SMTP}
+      -DCURL_DISABLE_GOPHER=${CURL_DISABLE_GOPHER}
+      -DCURL_DISABLE_RTSP=${CURL_DISABLE_RTSP}
+      
+      # ===== 禁用不需要的功能 =====
+      -DCURL_BROTLI=${CURL_BROTLI}                    # ← OFF
+      -DCURL_ZSTD=${CURL_ZSTD}                        # ← OFF
+      -DCURL_USE_LIBPSL=${CURL_USE_LIBPSL}            # ← OFF
+      -DUSE_LIBRTMP=${USE_LIBRTMP}                    # ← OFF
+      -DCURL_USE_LIBSSH2=${CURL_USE_LIBSSH2}          # ← OFF
+      
+      # ===== 保留 WebSocket（您的代码需要！） =====
+      -DCURL_DISABLE_WEBSOCKETS=${CURL_DISABLE_WEBSOCKETS}  # ← OFF
+      
+      # ===== 保留 HTTP/2 和 HTTP/3 =====
+      -DUSE_NGHTTP2=ON
+      -DUSE_NGTCP2=ON
+      
+      # ============================================================
+      
       # Make sure curl doesn't link against an unversioned .so (Linux only).
       -DZLIB_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include
       -DZLIB_LIBRARY=${_curl_zlib_library}
       -DZLIB_LIBRARY_RELEASE=${_curl_zlib_library}
       -DZSTD_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include
       -DZSTD_LIBRARY=${_curl_zstd_library}
-      -DUSE_NGHTTP2=ON
-      -DUSE_NGTCP2=ON
-      -DCURL_DISABLE_LDAP=ON
-      -DCURL_DISABLE_LDAPS=ON
-      # XXX: psl should be enabled in the future:
-      # https://daniel.haxx.se/blog/2024/01/10/psl-in-curl/
-      -DCURL_USE_LIBPSL=OFF
-      -DUSE_LIBRTMP=OFF
-      -DCURL_DISABLE_WEBSOCKETS=OFF
       -DUSE_ECH=ON
       -DUSE_SSLS_EXPORT=ON
       -DENABLE_IPV6=ON
-      -DCURL_USE_LIBSSH2=OFF
-      -DBUILD_MISC_DOCS=OFF
       -DENABLE_CURL_MANUAL=OFF
       ${_curl_ca_flags}
       ${_curl_idn_flags}
@@ -638,6 +712,7 @@ ExternalProject_Add(curl
     ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --parallel ${SUBJOBS}
   INSTALL_COMMAND ""
 )
+# ============================================================
 
 add_custom_target(curl-impersonate ALL DEPENDS curl)
 
@@ -704,7 +779,11 @@ endfunction()
 
 install(FILES "${CMAKE_SOURCE_DIR}/LICENSE" DESTINATION ".")
 _install_dependency_license(boringssl LICENSE LICENSE_BORINGSSL)
-_install_dependency_license(brotli LICENSE LICENSE_BROTLI)
+# ============================================================
+# ===== 修改：跳过 brotli 的 LICENSE 安装 =====
+# ============================================================
+# _install_dependency_license(brotli LICENSE LICENSE_BROTLI)
+# ============================================================
 _install_dependency_license(curl COPYING LICENSE_CURL)
 _install_dependency_license(nghttp2 COPYING LICENSE_NGHTTP2)
 _install_dependency_license(nghttp3 COPYING LICENSE_NGHTTP3)
