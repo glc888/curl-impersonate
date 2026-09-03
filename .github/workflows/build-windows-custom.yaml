@@ -1,41 +1,16 @@
-name: Build for windows
+name: Build Windows Custom
+
 on:
   workflow_dispatch:
-  workflow_call:
-  push:
-    branches:
-      - main
-      - feature/*
-      - bugfix/*
-      - chore/*
-      - security/*
-  pull_request:
-    branches:
-      - main
 
 permissions:
   contents: read
 
-env:
-  LICENSE_FILES: >-
-    LICENSE
-    LICENSE_BORINGSSL
-    LICENSE_CURL
-    LICENSE_NGHTTP2
-    LICENSE_NGHTTP3
-    LICENSE_NGTCP2
-    LICENSE_ZLIB
-    LICENSE_ZSTD
-
 jobs:
   build-windows:
-    name: Build windows binaries
-    strategy:
-      matrix:
-        include:
-          - { sys: vcvars64, env: x86_64, runner: windows-2022 }
-          - { sys: vcvars32, env: i686, runner: windows-2022 }
-    runs-on: ${{ matrix.runner }}
+    name: Build Windows x64
+    runs-on: windows-2022
+    
     steps:
       - name: Install python 3.11
         uses: actions/setup-python@v4
@@ -43,15 +18,15 @@ jobs:
           python-version: '3.11'
 
       - name: Check out the repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Install NASM
         shell: cmd
         run: choco install nasm -y
 
-      - name: Build
+      - name: Build x64
         shell: cmd
-        run: ./win/build.bat ${{ matrix.sys }}
+        run: ./win/build.bat vcvars64
 
       - name: Prepare packages
         shell: bash
@@ -83,12 +58,12 @@ jobs:
       - name: List packages
         shell: bash
         run: |
-          echo "=== packages ==="
-          ls -la packages/ || true
-          echo "=== packages/bin ==="
-          ls -la packages/bin/ || true
-          echo "=== packages/lib ==="
-          ls -la packages/lib/ || true
+          echo "=== deps/install/include ==="
+          ls -la deps/install/include/ || true
+          echo "=== deps/install ==="
+          ls -la deps/install/ || true
+          echo "=== deps/build/curl/include ==="
+          ls -la deps/build/curl/include/ || true
           echo "=== packages/include ==="
           ls -la packages/include/ || true
 
@@ -96,15 +71,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          suffix="${{ matrix.env }}-win32"
-          if [[ "${{ startsWith(github.ref, 'refs/tags/') }}" == "true" ]]; then
-            ver="${{ github.head_ref || github.ref_name }}"
-            curl_tar="curl-impersonate-${ver}.${suffix}.tar.gz"
-            lib_tar="libcurl-impersonate-${ver}.${suffix}.tar.gz"
-          else
-            curl_tar="curl-impersonate-${suffix}.tar.gz"
-            lib_tar="libcurl-impersonate-${suffix}.tar.gz"
-          fi
+          suffix="x86_64-win32"
+          curl_tar="curl-impersonate-${suffix}.tar.gz"
+          lib_tar="libcurl-impersonate-${suffix}.tar.gz"
           tar -czf "$curl_tar" -C packages/bin . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
           if [ -d "packages/lib" ] && [ "$(ls -A packages/lib)" ]; then
             tar -czf "$lib_tar" -C packages/lib . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
@@ -116,7 +85,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts.windows.${{ matrix.env }}
+          name: artifacts.windows.x86_64
           path: |
             ./curl-impersonate*.tar.gz
             ./libcurl-impersonate*.tar.gz
