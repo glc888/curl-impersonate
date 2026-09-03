@@ -107,7 +107,7 @@ jobs:
           fi
           tar -czf "$curl_tar" -C packages/bin . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
           if [ -d "packages/lib" ] && [ "$(ls -A packages/lib)" ]; then
-            tar -czf "$lib_tar" -C packages/lib . -C packages/include . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
+            tar -czf "$lib_tar" -C packages/lib . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
           else
             echo "No lib files found, skipping lib tarball"
             touch "$lib_tar"
