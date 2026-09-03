@@ -1,16 +1,42 @@
-name: Build Windows Custom
-
+name: Build for windows
 on:
   workflow_dispatch:
+  workflow_call:
+  push:
+    branches:
+      - main
+      - feature/*
+      - bugfix/*
+      - chore/*
+      - security/*
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
 
+env:
+  LICENSE_FILES: >-
+    LICENSE
+    LICENSE_BORINGSSL
+    LICENSE_CURL
+    LICENSE_NGHTTP2
+    LICENSE_NGHTTP3
+    LICENSE_NGTCP2
+    LICENSE_ZLIB
+    LICENSE_ZSTD
+
 jobs:
   build-windows:
-    name: Build Windows x64
-    runs-on: windows-2022
-    
+    name: Build windows binaries
+    strategy:
+      matrix:
+        include:
+          - { sys: vcvars64, env: x86_64, runner: windows-2022 }
+          - { sys: vcvars32, env: i686, runner: windows-2022 }
+          - { sys: vcvarsarm64, env: arm64, runner: windows-11-arm }
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: configure Pagefile
         uses: al-cheb/configure-pagefile-action@v1.3
@@ -31,16 +57,23 @@ jobs:
         shell: cmd
         run: choco install nasm -y
 
-      - name: Build x64
+      - name: Install Ninja for Win-ARM64
+        shell: pwsh
+        if: matrix.runner == 'windows-11-arm'
+        run: |
+          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.13.1/ninja-winarm64.zip -OutFile ninja-winarm64.zip
+          Expand-Archive ninja-winarm64.zip -DestinationPath ninja
+          Copy-Item ninja\ninja.exe -Destination "C:\Windows\System32"
+
+      - name: Build
         shell: cmd
-        run: ./win/build.bat vcvars64
+        run: ./win/build.bat ${{ matrix.sys }}
 
       - name: Copy all artifacts
         shell: cmd
         run: |
           echo "Creating artifacts directory..."
           mkdir artifacts
-          mkdir artifacts\libs
           
           echo "Copying curl-impersonate.exe..."
           copy packages\bin\curl-impersonate.exe artifacts\
@@ -52,20 +85,17 @@ jobs:
           echo "Copying libcurl-impersonate.lib..."
           copy packages\lib\*.lib artifacts\
           
-          echo "Copying all dependency libraries..."
-          echo "From deps\build\curl\lib..."
-          if exist deps\build\curl\lib\*.lib copy deps\build\curl\lib\*.lib artifacts\libs\
-          echo "From deps\install\lib..."
-          if exist deps\install\lib\*.lib copy deps\install\lib\*.lib artifacts\libs\
-          echo "From deps\install\lib (static libs)..."
-          if exist deps\install\lib\*.a copy deps\install\lib\*.a artifacts\libs\
-          echo "From deps\src\zlib..."
-          if exist deps\src\zlib\*.lib copy deps\src\zlib\*.lib artifacts\libs\
-          echo "From deps\src\nghttp2..."
-          if exist deps\src\nghttp2\*.lib copy deps\src\nghttp2\*.lib artifacts\libs\
+          echo "Copying DLL files..."
+          if exist packages\bin\*.dll copy packages\bin\*.dll artifacts\
+          if exist packages\lib\*.dll copy packages\lib\*.dll artifacts\
+          if exist deps\build\curl\lib\*.dll copy deps\build\curl\lib\*.dll artifacts\
+          if exist deps\install\bin\*.dll copy deps\install\bin\*.dll artifacts\
+          if exist deps\install\lib\*.dll copy deps\install\lib\*.dll artifacts\
           
-          echo "Copying libcurl-impersonate.lib to libs folder too..."
-          copy packages\lib\*.lib artifacts\libs\
+          echo "Copying all dependency libraries..."
+          if exist deps\build\curl\lib\*.lib copy deps\build\curl\lib\*.lib artifacts\
+          if exist deps\install\lib\*.lib copy deps\install\lib\*.lib artifacts\
+          if exist deps\install\lib\*.a copy deps\install\lib\*.a artifacts\
           
           echo "Copying LICENSE files..."
           copy packages\*.LICENSE* artifacts\
@@ -73,9 +103,26 @@ jobs:
           echo "Listing all artifacts:"
           dir /s artifacts
 
+      - name: Build tarballs
+        shell: bash
+        run: |
+          set -euo pipefail
+          suffix="${{ matrix.env }}-win32"
+          if [[ "${{ startsWith(github.ref, 'refs/tags/') }}" == "true" ]]; then
+            ver="${{ github.head_ref || github.ref_name }}"
+            curl_tar="curl-impersonate-${ver}.${suffix}.tar.gz"
+            lib_tar="libcurl-impersonate-${ver}.${suffix}.tar.gz"
+          else
+            curl_tar="curl-impersonate-${suffix}.tar.gz"
+            lib_tar="libcurl-impersonate-${suffix}.tar.gz"
+          fi
+          tar -czf "$curl_tar" -C artifacts . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
+          tar -czf "$lib_tar" -C artifacts lib include $LICENSE_FILES
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: curl-impersonate-windows-full
+          name: artifacts.windows.${{ matrix.env }}
           path: |
-            artifacts/*
+            ./curl-impersonate*.tar.gz
+            ./libcurl-impersonate*.tar.gz
