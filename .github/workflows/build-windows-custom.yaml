@@ -65,18 +65,27 @@ jobs:
         shell: bash
         run: |
           mkdir -p packages/bin packages/lib packages/include
-          cp -r deps/src/curl/include/curl packages/include/
-          cp deps/install/bin/curl-impersonate.exe packages/bin/
-          cp deps/install/lib/libcurl-impersonate*.lib packages/lib/
-          cp deps/install/lib/libcurl-impersonate*.a packages/lib/ 2>/dev/null || true
+          if [ -d "deps/src/curl/include/curl" ]; then
+            cp -r deps/src/curl/include/curl packages/include/
+          fi
+          if [ -f "deps/install/bin/curl-impersonate.exe" ]; then
+            cp deps/install/bin/curl-impersonate.exe packages/bin/
+          fi
+          if [ -f "deps/build/curl/src/curl-impersonate.exe" ]; then
+            cp deps/build/curl/src/curl-impersonate.exe packages/bin/
+          fi
+          if [ -d "deps/install/lib" ]; then
+            cp deps/install/lib/*.lib packages/lib/ 2>/dev/null || true
+            cp deps/install/lib/*.a packages/lib/ 2>/dev/null || true
+          fi
+          if [ -d "deps/build/curl/lib" ]; then
+            cp deps/build/curl/lib/*.lib packages/lib/ 2>/dev/null || true
+          fi
           cp LICENSE* packages/ 2>/dev/null || true
-          cp deps/src/boringssl/LICENSE packages/LICENSE_BORINGSSL
-          cp deps/src/curl/COPYING packages/LICENSE_CURL
-          cp deps/src/nghttp2/COPYING packages/LICENSE_NGHTTP2
-          cp deps/src/nghttp3/COPYING packages/LICENSE_NGHTTP3
-          cp deps/src/ngtcp2/COPYING packages/LICENSE_NGTCP2
-          cp deps/src/zlib/LICENSE packages/LICENSE_ZLIB
-          cp deps/src/zstd/LICENSE packages/LICENSE_ZSTD
+
+      - name: List packages
+        shell: bash
+        run: ls -la packages/ packages/bin/ packages/lib/ packages/include/ || true
 
       - name: Build tarballs
         shell: bash
