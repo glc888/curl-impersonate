@@ -20,6 +20,7 @@ env:
   LICENSE_FILES: >-
     LICENSE
     LICENSE_BORINGSSL
+    LICENSE_BROTLI
     LICENSE_CURL
     LICENSE_NGHTTP2
     LICENSE_NGHTTP3
@@ -35,7 +36,6 @@ jobs:
         include:
           - { sys: vcvars64, env: x86_64, runner: windows-2022 }
           - { sys: vcvars32, env: i686, runner: windows-2022 }
-          - { sys: vcvarsarm64, env: arm64, runner: windows-11-arm }
     runs-on: ${{ matrix.runner }}
     steps:
       - name: configure Pagefile
@@ -51,57 +51,32 @@ jobs:
           python-version: '3.11'
 
       - name: Check out the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
 
       - name: Install NASM
         shell: cmd
         run: choco install nasm -y
 
-      - name: Install Ninja for Win-ARM64
-        shell: pwsh
-        if: matrix.runner == 'windows-11-arm'
-        run: |
-          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.13.1/ninja-winarm64.zip -OutFile ninja-winarm64.zip
-          Expand-Archive ninja-winarm64.zip -DestinationPath ninja
-          Copy-Item ninja\ninja.exe -Destination "C:\Windows\System32"
-
       - name: Build
         shell: cmd
         run: ./win/build.bat ${{ matrix.sys }}
 
-      - name: Copy all artifacts
-        shell: cmd
+      - name: Prepare packages
+        shell: bash
         run: |
-          echo "Creating artifacts directory..."
-          mkdir artifacts
-          
-          echo "Copying curl-impersonate.exe..."
-          copy packages\bin\curl-impersonate.exe artifacts\
-          copy packages\bin\*.bat artifacts\
-          
-          echo "Copying header files..."
-          xcopy /E /I packages\include\curl artifacts\include\curl\
-          
-          echo "Copying libcurl-impersonate.lib..."
-          copy packages\lib\*.lib artifacts\
-          
-          echo "Copying DLL files..."
-          if exist packages\bin\*.dll copy packages\bin\*.dll artifacts\
-          if exist packages\lib\*.dll copy packages\lib\*.dll artifacts\
-          if exist deps\build\curl\lib\*.dll copy deps\build\curl\lib\*.dll artifacts\
-          if exist deps\install\bin\*.dll copy deps\install\bin\*.dll artifacts\
-          if exist deps\install\lib\*.dll copy deps\install\lib\*.dll artifacts\
-          
-          echo "Copying all dependency libraries..."
-          if exist deps\build\curl\lib\*.lib copy deps\build\curl\lib\*.lib artifacts\
-          if exist deps\install\lib\*.lib copy deps\install\lib\*.lib artifacts\
-          if exist deps\install\lib\*.a copy deps\install\lib\*.a artifacts\
-          
-          echo "Copying LICENSE files..."
-          copy packages\*.LICENSE* artifacts\
-          
-          echo "Listing all artifacts:"
-          dir /s artifacts
+          mkdir -p packages/bin packages/lib packages/include
+          cp -r deps/src/curl/include/curl packages/include/
+          cp deps/install/bin/curl-impersonate.exe packages/bin/
+          cp deps/install/lib/libcurl-impersonate*.lib packages/lib/
+          cp deps/install/lib/libcurl-impersonate*.a packages/lib/ 2>/dev/null || true
+          cp LICENSE* packages/ 2>/dev/null || true
+          cp deps/src/boringssl/LICENSE packages/LICENSE_BORINGSSL
+          cp deps/src/curl/COPYING packages/LICENSE_CURL
+          cp deps/src/nghttp2/COPYING packages/LICENSE_NGHTTP2
+          cp deps/src/nghttp3/COPYING packages/LICENSE_NGHTTP3
+          cp deps/src/ngtcp2/COPYING packages/LICENSE_NGTCP2
+          cp deps/src/zlib/LICENSE packages/LICENSE_ZLIB
+          cp deps/src/zstd/LICENSE packages/LICENSE_ZSTD
 
       - name: Build tarballs
         shell: bash
@@ -116,8 +91,8 @@ jobs:
             curl_tar="curl-impersonate-${suffix}.tar.gz"
             lib_tar="libcurl-impersonate-${suffix}.tar.gz"
           fi
-          tar -czf "$curl_tar" -C artifacts . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
-          tar -czf "$lib_tar" -C artifacts lib include $LICENSE_FILES
+          tar -czf "$curl_tar" -C packages/bin . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
+          tar -czf "$lib_tar" -C packages/lib . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
