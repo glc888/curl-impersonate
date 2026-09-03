@@ -1,42 +1,16 @@
 name: Build for windows
+
 on:
-  workflow_dispatch:    # 允许手动触发
-  workflow_call:
-  push:
-    branches:
-      - main
-      - feature/*
-      - bugfix/*
-      - chore/*
-      - security/*
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
 
-env:
-  LICENSE_FILES: >-
-    LICENSE
-    LICENSE_BORINGSSL
-    LICENSE_CURL
-    LICENSE_NGHTTP2
-    LICENSE_NGHTTP3
-    LICENSE_NGTCP2
-    LICENSE_ZLIB
-    LICENSE_ZSTD
-
 jobs:
   build-windows:
-    name: Build windows binaries
-    strategy:
-      matrix:
-        include:
-          - { sys: vcvars64, env: x86_64, runner: windows-2022 }
-          # - { sys: vcvars32, env: i686, runner: windows-2022 }  # 注释掉，不需要 32 位
-          # - { sys: vcvarsarm64, env: arm64, runner: windows-11-arm }  # 注释掉，不需要 ARM
-    runs-on: ${{ matrix.runner }}
+    name: Build Windows x64
+    runs-on: windows-2022
+    
     steps:
       - name: configure Pagefile
         uses: al-cheb/configure-pagefile-action@v1.3
@@ -51,54 +25,32 @@ jobs:
           python-version: '3.11'
 
       - name: Check out the repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Install NASM
         shell: cmd
         run: choco install nasm -y
 
-      - name: Install Ninja for Win-ARM64
-        shell: pwsh
-        if: matrix.runner == 'windows-11-arm'
-        run: |
-          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.13.1/ninja-winarm64.zip -OutFile ninja-winarm64.zip
-          Expand-Archive ninja-winarm64.zip -DestinationPath ninja
-          Copy-Item ninja\ninja.exe -Destination "C:\Windows\System32"
-
-      # - name: Setup tmate session for debugging
-      #   uses: mxschmitt/action-tmate@v3
-
       - name: Build
         shell: cmd
-        run: ./win/build.bat ${{ matrix.sys }}
+        run: ./win/build.bat vcvars64
 
-      - name: Build tarballs
-        shell: bash
+      - name: Copy all static libraries
+        shell: cmd
         run: |
-          set -euo pipefail
-          suffix="${{ matrix.env }}-win32"
-          if [[ "${{ startsWith(github.ref, 'refs/tags/') }}" == "true" ]]; then
-            ver="${{ github.head_ref || github.ref_name }}"
-            curl_tar="curl-impersonate-${ver}.${suffix}.tar.gz"
-            lib_tar="libcurl-impersonate-${ver}.${suffix}.tar.gz"
-          else
-            curl_tar="curl-impersonate-${suffix}.tar.gz"
-            lib_tar="libcurl-impersonate-${suffix}.tar.gz"
-          fi
-          # 只打包存在的 LICENSE 文件
-          LICENSE_FILES_EXIST=""
-          for f in $LICENSE_FILES; do
-            if [ -f "$GITHUB_WORKSPACE/packages/$f" ]; then
-              LICENSE_FILES_EXIST="$LICENSE_FILES_EXIST $f"
-            fi
-          done
-          tar -czf "$curl_tar" -C packages/bin . -C "$GITHUB_WORKSPACE/packages" $LICENSE_FILES_EXIST
-          tar -czf "$lib_tar" -C packages lib include $LICENSE_FILES_EXIST
+          mkdir all_libs
+          copy deps\build\curl\lib\*.lib all_libs\ 2>nul
+          copy deps\install\lib\*.lib all_libs\ 2>nul
+          copy deps\install\lib\*.a all_libs\ 2>nul
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts.windows.${{ matrix.env }}
+          name: curl-impersonate-windows-full
           path: |
-            ./curl-impersonate*.tar.gz
-            ./libcurl-impersonate*.tar.gz
+            packages/bin/curl-impersonate.exe
+            packages/bin/*.bat
+            packages/include/curl/*.h
+            all_libs/*.lib
+            all_libs/*.a
+            packages/LICENSE*
