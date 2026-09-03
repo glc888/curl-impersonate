@@ -648,6 +648,14 @@ ExternalProject_Add(curl
       -DCURL_DISABLE_UNIX_SOCKETS=ON
       # ===== 裁剪 Largefile =====
       -DENABLE_LARGE_FILE=OFF
+      # ===== 裁剪 AsynchDNS =====
+      -DENABLE_ASYNC_DNS=OFF
+      # ===== 裁剪 Unicode =====
+      -DENABLE_UNICODE=OFF
+      # ===== 裁剪 HTTPS-proxy =====
+      -DCURL_DISABLE_PROXY=ON
+      # ===== 裁剪 SSLS-EXPORT =====
+      -DUSE_SSLS_EXPORT=OFF
       # =========================================
       # Make sure curl doesn't link against an unversioned .so (Linux only).
       -DZLIB_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include
@@ -658,7 +666,6 @@ ExternalProject_Add(curl
       -DUSE_NGHTTP2=ON
       -DCURL_DISABLE_WEBSOCKETS=OFF
       -DUSE_ECH=ON
-      -DUSE_SSLS_EXPORT=ON
       -DENABLE_IPV6=ON
       -DCURL_USE_LIBSSH2=OFF
       -DBUILD_MISC_DOCS=OFF
