@@ -603,8 +603,10 @@ ExternalProject_Add(curl
       -DHAVE_SSL_SET1_ECH_CONFIG_LIST=1
       -DHAVE_SSL_SET_QUIC_USE_LEGACY_CODEPOINT=1
       -DHAVE_OPENSSL_SRP=0
-      -DCURL_BROTLI=OFF
-      -DCURL_ZSTD=OFF
+      # ===== 保持 Brotli 和 ZSTD 开启（原版默认） =====
+      -DCURL_BROTLI=ON
+      -DCURL_ZSTD=ON
+      # ===== 裁剪不需要的协议 =====
       -DCURL_DISABLE_FTP=ON
       -DCURL_DISABLE_TFTP=ON
       -DCURL_DISABLE_TELNET=ON
@@ -614,6 +616,7 @@ ExternalProject_Add(curl
       -DCURL_DISABLE_SMTP=ON
       -DCURL_DISABLE_GOPHER=ON
       -DCURL_DISABLE_RTSP=ON
+      # =========================================
       # Make sure curl doesn't link against an unversioned .so (Linux only).
       -DZLIB_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include
       -DZLIB_LIBRARY=${_curl_zlib_library}
